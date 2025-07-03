@@ -5,8 +5,8 @@ import imageio
 import numpy as np
 import glob
 from pathlib import Path
-import utils.data
-from datasets.pointdataset import PointDataset
+import alltracker.utils.data
+from alltracker.datasets.pointdataset import PointDataset
 import random
 
 class KubricMovifDataset(PointDataset):
@@ -225,7 +225,7 @@ class KubricMovifDataset(PointDataset):
         visibs = visibs[:, :self.traj_per_sample*self.traj_max_factor]
         valids = valids[:, :self.traj_per_sample*self.traj_max_factor]
         
-        sample = utils.data.VideoData(
+        sample = alltracker.utils.data.VideoData(
             video=rgbs,
             trajs=trajs,
             visibs=visibs,

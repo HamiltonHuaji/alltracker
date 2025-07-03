@@ -2,7 +2,7 @@ import torch
 import torch.nn.functional as F
 import torch.nn as nn
 from typing import List
-import utils.basic
+import alltracker.utils.basic
 
 
 def sequence_loss(
@@ -33,7 +33,7 @@ def sequence_loss(
             valid_ = valids[j].clone()
             if loss_only_for_visible:
                 valid_ = valid_ * vis[j]
-            flow_loss += i_weight * utils.basic.reduce_masked_mean(i_loss, valid_)
+            flow_loss += i_weight * alltracker.utils.basic.reduce_masked_mean(i_loss, valid_)
         flow_loss = flow_loss / n_predictions
         total_flow_loss += flow_loss
     return total_flow_loss / len(flow_gt)
@@ -71,7 +71,7 @@ def sequence_loss_dense(
             # print(' (%d,%d) valid_' % (i,j), valid_.shape)
             if loss_only_for_visible:
                 valid_ = valid_ * vis[j].reshape(B,-1,H,W) # usually B,S,H,W, but maybe B,1,H,W
-            flow_loss += i_weight * utils.basic.reduce_masked_mean(i_loss_, valid_, broadcast=True)
+            flow_loss += i_weight * alltracker.utils.basic.reduce_masked_mean(i_loss_, valid_, broadcast=True)
             # import ipdb; ipdb.set_trace()
         flow_loss = flow_loss / n_predictions
         total_flow_loss += flow_loss

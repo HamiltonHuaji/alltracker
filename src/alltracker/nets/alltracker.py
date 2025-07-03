@@ -1,10 +1,10 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import utils.misc
+import alltracker.utils.misc
 import numpy as np
 
-from nets.blocks import CNBlockConfig, ConvNeXt, conv1x1, RelUpdateBlock, InputPadder, CorrBlock, BasicEncoder
+from alltracker.nets.blocks import CNBlockConfig, ConvNeXt, conv1x1, RelUpdateBlock, InputPadder, CorrBlock, BasicEncoder
 
 class Net(nn.Module):
     def __init__(
@@ -106,7 +106,7 @@ class Net(nn.Module):
                                            no_ctx=no_ctx)
 
         time_line = torch.linspace(0, seqlen-1, seqlen).reshape(1, seqlen, 1)
-        self.register_buffer("time_emb", utils.misc.get_1d_sincos_pos_embed_from_grid(self.dim, time_line[0])) # 1,S,C
+        self.register_buffer("time_emb", alltracker.utils.misc.get_1d_sincos_pos_embed_from_grid(self.dim, time_line[0])) # 1,S,C
 
         
     def fetch_time_embed(self, t, dtype, is_training=False):

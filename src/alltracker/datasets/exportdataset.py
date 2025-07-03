@@ -6,14 +6,14 @@ import random
 import imageio
 from pathlib import Path
 import matplotlib.pyplot as plt
-from utils.basic import print_stats
+from alltracker.utils.basic import print_stats
 from PIL import Image
 import cv2
-import utils.py
+import alltracker.utils.py
 import torch.nn.functional as F
 import torchvision.transforms.functional as tvF
 from torchvision.transforms import ColorJitter, GaussianBlur
-from datasets.pointdataset import PointDataset
+from alltracker.datasets.pointdataset import PointDataset
 
 class ExportDataset(PointDataset):
     def __init__(self,

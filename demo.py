@@ -1,9 +1,9 @@
 import torch
 import cv2
 import argparse
-import utils.saveload
-import utils.basic
-import utils.improc
+import alltracker.utils.saveload
+import alltracker.utils.basic
+import alltracker.utils.improc
 import PIL.Image
 import numpy as np
 import os
@@ -64,7 +64,7 @@ def forward_video(rgbs, model, args):
     device = rgbs.device
     assert(B==1)
 
-    grid_xy = utils.basic.gridcloud2d(1, H, W, norm=False, device='cuda:0').float() # 1,H*W,2
+    grid_xy = alltracker.utils.basic.gridcloud2d(1, H, W, norm=False, device='cuda:0').float() # 1,H*W,2
     grid_xy = grid_xy.permute(0,2,1).reshape(1,1,2,H,W) # 1,1,2,H,W
 
     torch.cuda.empty_cache()
@@ -85,8 +85,8 @@ def forward_video(rgbs, model, args):
     ftime = time.time()-f_start_time
     print('finished forward; %.2f seconds / %d frames; %d fps' % (ftime, T, round(T/ftime)))
     # traj_maps_e = flows_e + grid_xy # B,T,2,H,W
-    utils.basic.print_stats('traj_maps_e', traj_maps_e)
-    utils.basic.print_stats('visconf_maps_e', visconf_maps_e)
+    alltracker.utils.basic.print_stats('traj_maps_e', traj_maps_e)
+    alltracker.utils.basic.print_stats('visconf_maps_e', visconf_maps_e)
 
     # subsample to make the vis more readable
     rate = args.subsample_rate
@@ -94,7 +94,7 @@ def forward_video(rgbs, model, args):
     visconfs_e = visconf_maps_e[:,:,:,::rate,::rate].reshape(B,T,2,-1).permute(0,1,3,2) # B,T,N,2
     print('trajs_e', trajs_e.shape)
     xy0 = trajs_e[0,0].cpu().numpy()
-    colors = utils.improc.get_2d_colors(xy0, H, W)
+    colors = alltracker.utils.improc.get_2d_colors(xy0, H, W)
 
     # sort according to velocity, so that moving points are drawn last
     vels = trajs_e[0,1:].detach().cpu().numpy() - trajs_e[0,:-1].detach().cpu().numpy() # T-1,N,2
@@ -105,7 +105,7 @@ def forward_video(rgbs, model, args):
     rgb_out_f = './pt_vis_%s_rate%d_q%d.mp4' % (fn, rate, args.query_frame)
     print('rgb_out_f', rgb_out_f)
     temp_dir = 'temp_pt_vis_%s_rate%d_q%d' % (fn, rate, args.query_frame)
-    utils.basic.mkdir(temp_dir)
+    alltracker.utils.basic.mkdir(temp_dir)
     vis = []
     for ti in range(T):
         pt_vis = draw_pts(rgbs[0,ti].permute(1,2,0).detach().cpu().byte().numpy().copy(),
@@ -144,7 +144,7 @@ def run(model, args):
     global_step = 0
 
     if args.ckpt_init:
-        _ = utils.saveload.load(
+        _ = alltracker.utils.saveload.load(
             None,
             args.ckpt_init,
             model,
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     parser.add_argument("--mixed_precision", action='store_true', default=False)
     args = parser.parse_args()
 
-    from nets.alltracker import Net; model = Net(args.window_len)
+    from alltracker.nets.alltracker import Net; model = Net(args.window_len)
     count_parameters(model)
 
     run(model, args)

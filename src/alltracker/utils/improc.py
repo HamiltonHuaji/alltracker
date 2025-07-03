@@ -1,7 +1,7 @@
 import torch
 import numpy as np
-import utils.basic
-import utils.py
+import alltracker.utils.basic
+import alltracker.utils.py
 from sklearn.decomposition import PCA
 from matplotlib import cm
 import matplotlib.pyplot as plt
@@ -58,7 +58,8 @@ def flow2color(flow, clip=0.0):
     flow = (flow*255.0).type(torch.ByteTensor)
     return flow
 
-COLORMAP_FILE = "./utils/bremm.png"
+from pathlib import Path
+COLORMAP_FILE = Path(__file__).parent / 'bremm.png'
 class ColorMap2d:
     def __init__(self, filename=None):
         self._colormap_file = filename or COLORMAP_FILE
@@ -180,7 +181,7 @@ def reduce_emb(emb, valid=None, inbound=None, together=False):
         reduced_emb = pca_embed(emb, keep, valid) #not im
 
     reduced_emb = reduced_emb[:,1:]
-    reduced_emb = utils.basic.normalize(reduced_emb) - 0.5
+    reduced_emb = alltracker.utils.basic.normalize(reduced_emb) - 0.5
     if inbound is not None:
         emb_inbound = emb*inbound
     else:
@@ -229,7 +230,7 @@ def draw_frame_id_on_vis(vis, frame_id, scale=0.5, left=5, top=20, shadow=True):
     color = (255, 255, 255)
     # print('putting frame id', frame_id)
 
-    frame_str = utils.basic.strnum(frame_id)
+    frame_str = alltracker.utils.basic.strnum(frame_id)
 
     text_color_bg = (0,0,0)
     font = cv2.FONT_HERSHEY_SIMPLEX
@@ -473,7 +474,7 @@ class Summ_writer(object):
             if norm:
                 # normalize before oned2inferno,
                 # so that the ranges are similar within B across S
-                im = utils.basic.normalize(im)
+                im = alltracker.utils.basic.normalize(im)
 
             im = im.view(B*S, C, H, W)
             vis = oned2inferno(im, norm=norm, do_colorize=do_colorize)
@@ -554,7 +555,7 @@ class Summ_writer(object):
                     feats = torch.mean(feats, dim=reduce_dim)
                 else: 
                     valids = valids.repeat(1, 1, feats.size()[2], 1, 1, 1)
-                    feats = utils.basic.reduce_masked_mean(feats, valids, dim=reduce_dim)
+                    feats = alltracker.utils.basic.reduce_masked_mean(feats, valids, dim=reduce_dim)
 
             B, S, C, D, W = list(feats.size())
 
@@ -597,7 +598,7 @@ class Summ_writer(object):
                     feat = torch.mean(feat, dim=reduce_axis)
                 else:
                     valid = valid.repeat(1, feat.size()[1], 1, 1, 1)
-                    feat = utils.basic.reduce_masked_mean(feat, valid, dim=reduce_axis)
+                    feat = alltracker.utils.basic.reduce_masked_mean(feat, valid, dim=reduce_axis)
                     
             B, C, D, W = list(feat.shape)
 

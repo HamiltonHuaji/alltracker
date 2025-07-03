@@ -5,16 +5,17 @@ import torch.nn.functional as F
 import numpy as np
 import argparse
 from lightning_fabric import Fabric 
-import utils.loss
-import utils.samp
-import utils.data
-import utils.improc
-import utils.misc
-import utils.saveload
+import alltracker.utils.loss
+import alltracker.utils.basic
+import alltracker.utils.samp
+import alltracker.utils.data
+import alltracker.utils.improc
+import alltracker.utils.misc
+import alltracker.utils.saveload
 from tensorboardX import SummaryWriter
 import datetime
 import time
-from nets.blocks import bilinear_sampler
+from alltracker.nets.blocks import bilinear_sampler
 
 torch.set_float32_matmul_precision('medium')
 
@@ -33,8 +34,8 @@ def get_parameter_names(model, forbidden_layer_types):
     return result
 
 def get_flow_dataset(args):
-    import datasets.metaflowdataset
-    dataset = datasets.metaflowdataset.MetaflowDataset(
+    import alltracker.datasets.metaflowdataset
+    dataset = alltracker.datasets.metaflowdataset.MetaflowDataset(
         data_root=args.data_dir,
         crop_size=args.crop_size_2,
         use_augs=args.use_augs,
@@ -45,7 +46,7 @@ def get_flow_dataset(args):
     return dataset, dataset_names
 
 def get_multi_dataset_24(args, crop_size, N, version='aa00', T=56):
-    from datasets import exportdataset
+    from alltracker.datasets import exportdataset
     dsets = None
     dsets_exclude = None
     export_dataset = exportdataset.ExportDataset(
@@ -83,7 +84,7 @@ def get_multi_dataset_24(args, crop_size, N, version='aa00', T=56):
         only_first=True,
     )
     
-    from datasets import dynrep_dataset
+    from alltracker.datasets import dynrep_dataset
     dyn_dataset = dynrep_dataset.DynamicReplicaDataset(
         os.path.join(args.data_dir, 'dynamicreplica'), 
         crop_size=crop_size,
@@ -96,7 +97,7 @@ def get_multi_dataset_24(args, crop_size, N, version='aa00', T=56):
     )
 
     # stage1 kubric data
-    from datasets import kubric_movif_dataset
+    from alltracker.datasets import kubric_movif_dataset
     kubric_version = 'au'
     kub_dataset = kubric_movif_dataset.KubricMovifDataset(
         data_root=os.path.join(args.data_dir, 'kubric_%s' % kubric_version),
@@ -121,7 +122,7 @@ def get_multi_dataset_24(args, crop_size, N, version='aa00', T=56):
 
 
 def get_multi_dataset_64(args, crop_size, N, version='aa00', T=56):
-    from datasets import exportdataset18
+    from alltracker.datasets import exportdataset
     dsets = None
     dsets_exclude = None
     export_dataset = exportdataset.ExportDataset(
@@ -159,7 +160,7 @@ def get_multi_dataset_64(args, crop_size, N, version='aa00', T=56):
         only_first=True,
     )
 
-    from datasets import dynrep_dataset
+    from alltracker.datasets import dynrep_dataset
     dyn_dataset = dynrep_dataset.DynamicReplicaDataset(
         args.data_dir,
         crop_size=crop_size,
@@ -185,8 +186,8 @@ def create_pools(n_pool=50, min_size=10):
 
     thrs = [1,2,4,8,16]
     for thr in thrs:
-        pools['d_%d' % thr] = utils.misc.SimplePool(n_pool, version='np', min_size=min_size)
-    pools['d_avg'] = utils.misc.SimplePool(n_pool, version='np', min_size=min_size)
+        pools['d_%d' % thr] = alltracker.utils.misc.SimplePool(n_pool, version='np', min_size=min_size)
+    pools['d_avg'] = alltracker.utils.misc.SimplePool(n_pool, version='np', min_size=min_size)
     
     pool_names = [
         'seq_loss_visible',
@@ -196,7 +197,7 @@ def create_pools(n_pool=50, min_size=10):
         'total_loss',
     ]
     for pool_name in pool_names:
-        pools[pool_name] = utils.misc.SimplePool(n_pool, version='np', min_size=min_size)
+        pools[pool_name] = alltracker.utils.misc.SimplePool(n_pool, version='np', min_size=min_size)
         
     return pools
 
@@ -327,7 +328,7 @@ def forward_batch_sparse(batch, model, args, sw, inference_iters):
         print('nan!')
         return None, None
         
-    grid_xy = utils.basic.gridcloud2d(1, H, W, norm=False, device=device).float() # 1,H*W,2
+    grid_xy = alltracker.utils.basic.gridcloud2d(1, H, W, norm=False, device=device).float() # 1,H*W,2
     grid_xy = grid_xy.permute(0,2,1).reshape(1,1,2,H,W) # 1,1,2,H,W
     traj_maps_e = all_flow_e + grid_xy # B,T,2,H,W
     xy0 = trajs_g[:,0] # B,N,2
@@ -336,7 +337,7 @@ def forward_batch_sparse(batch, model, args, sw, inference_iters):
 
     traj_maps_e_ = traj_maps_e.reshape(B*T,2,H,W)
     xy0_ = xy0.reshape(B,1,N,2).repeat(1,T,1,1).reshape(B*T,N,1,2)
-    trajs_e_ = utils.samp.bilinear_sampler(traj_maps_e_, xy0_) # B*T,2,N,1
+    trajs_e_ = alltracker.utils.samp.bilinear_sampler(traj_maps_e_, xy0_) # B*T,2,N,1
     trajs_e = trajs_e_.reshape(B,T,2,N).permute(0,1,3,2) # B,T,N,2
 
     xy0_ = xy0.reshape(B,1,N,2).repeat(1,S,1,1).reshape(B*S,N,1,2)
@@ -348,7 +349,7 @@ def forward_batch_sparse(batch, model, args, sw, inference_iters):
         for fp in fpl:
             traj_map = fp + grid_xy # B,S,2,H,W
             traj_map_ = traj_map.reshape(B*S,2,H,W)
-            traj_e_ = utils.samp.bilinear_sampler(traj_map_, xy0_) # B*T,2,N,1
+            traj_e_ = alltracker.utils.samp.bilinear_sampler(traj_map_, xy0_) # B*T,2,N,1
             traj_e = traj_e_.reshape(B,S,2,N).permute(0,1,3,2) # B,S,N,2
             cps.append(traj_e)
         coord_predictions.append(cps)
@@ -384,7 +385,7 @@ def forward_batch_sparse(batch, model, args, sw, inference_iters):
     total_loss = torch.tensor(0.0, requires_grad=True, device=device)
     metrics = {}
           
-    seq_loss_visible = utils.loss.sequence_loss(
+    seq_loss_visible = alltracker.utils.loss.sequence_loss(
         coord_predictions,
         traj_gts,
         valids_gts,
@@ -393,12 +394,12 @@ def forward_batch_sparse(batch, model, args, sw, inference_iters):
         use_huber_loss=args.use_huber_loss,
         loss_only_for_visible=True,
     )
-    confidence_loss = utils.loss.sequence_prob_loss(
+    confidence_loss = alltracker.utils.loss.sequence_prob_loss(
         coord_predictions, confidence_predictions, traj_gts, vis_gts
     )
-    vis_loss = utils.loss.sequence_BCE_loss(vis_predictions, vis_gts)
+    vis_loss = alltracker.utils.loss.sequence_BCE_loss(vis_predictions, vis_gts)
 
-    seq_loss_invisible = utils.loss.sequence_loss(
+    seq_loss_invisible = alltracker.utils.loss.sequence_loss(
         coord_predictions,
         traj_gts,
         valids_gts,
@@ -433,8 +434,8 @@ def forward_batch_sparse(batch, model, args, sw, inference_iters):
         metrics['total_loss'] = total_loss.item()
     
     if sw is not None and sw.save_this:
-        utils.basic.print_stats('rgbs', rgbs)
-        prep_rgbs = utils.basic.normalize(rgbs[0:1])-0.5
+        alltracker.utils.basic.print_stats('rgbs', rgbs)
+        prep_rgbs = alltracker.utils.basic.normalize(rgbs[0:1])-0.5
         prep_grays = prep_rgbs.mean(dim=2, keepdim=True).repeat(1,1,3,1,1)
         sw.summ_rgb('0_inputs/rgb0', prep_rgbs[:,0], frame_str=dname[0], frame_id=torch.sum(vis_g[0,0]).item())
         sw.summ_traj2ds_on_rgb('0_inputs/trajs_g_on_rgb0', trajs_g[0:1], prep_rgbs[:,0], cmap='winter', linewidth=1)
@@ -451,12 +452,12 @@ def forward_batch_sparse(batch, model, args, sw, inference_iters):
         sw.summ_pts_on_rgbs(
             '0_inputs/kps_gv_on_rgbs',
             trajs_clamp[0:1,:,inds],
-            utils.improc.preprocess_color(outs),
+            alltracker.utils.improc.preprocess_color(outs),
             valids=valids[0:1,:,inds]*vis_g[0:1,:,inds],
             cmap='spring', linewidth=2,
             frame_ids=list(range(T)))
         
-        out = utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('', trajs_g[0:1,:,inds], prep_rgbs[:,0], cmap='winter', linewidth=1, only_return=True))
+        out = alltracker.utils.improc.preprocess_color(sw.summ_traj2ds_on_rgb('', trajs_g[0:1,:,inds], prep_rgbs[:,0], cmap='winter', linewidth=1, only_return=True))
         sw.summ_traj2ds_on_rgb('2_outputs/trajs_e_on_g', trajs_e[0:1,:,inds], out, cmap='spring', linewidth=1)
 
         trajs_e_clamp = trajs_e.clone()
@@ -473,7 +474,7 @@ def forward_batch_sparse(batch, model, args, sw, inference_iters):
         sw.summ_pts_on_rgbs(
             '2_outputs/kps_ge_on_rgbs',
             trajs_e_clamp[0:1,:,inds],
-            utils.improc.preprocess_color(outs),
+            alltracker.utils.improc.preprocess_color(outs),
             valids=valids[0:1,:,inds]*vis_g[0:1,:,inds],
             cmap='spring', linewidth=2,
             frame_ids=list(range(T)))
@@ -525,9 +526,9 @@ def forward_batch_flow(batch, model, args, sw, inference_iters, horz_flip=False,
     flow_g_mag = torch.linalg.norm(flow_g, dim=1, keepdim=True)
 
     if sw is not None and sw.save_this:
-        prep_rgb0 = utils.basic.normalize(rgb0[0:1])-0.5
-        prep_rgb1 = utils.basic.normalize(rgb1[0:1])-0.5
-        
+        prep_rgb0 = alltracker.utils.basic.normalize(rgb0[0:1])-0.5
+        prep_rgb1 = alltracker.utils.basic.normalize(rgb1[0:1])-0.5
+
         rgb0_vis = sw.summ_rgb('', prep_rgb0, only_return=True, frame_str=dname[0])
         rgb1_vis = sw.summ_rgb('', prep_rgb1, only_return=True)
         flow_vis = sw.summ_flow('', flow_g[0:1], only_return=True, frame_id=flow_g_mag[0].mean().item())
@@ -658,7 +659,7 @@ def run(model, args):
     model_name += "i%d" % (args.inference_iters_56)
     if args.shuffle_frames:
         model_name += "s"
-    lrn = utils.basic.get_lr_str(args.lr) # e.g., 5e-4
+    lrn = alltracker.utils.basic.get_lr_str(args.lr) # e.g., 5e-4
     model_name += "_%s" % lrn
     if args.mixed_precision:
         model_name += "m"
@@ -726,7 +727,7 @@ def run(model, args):
             worker_init_fn=seed_worker,
             generator=g,
             pin_memory=False,
-            collate_fn=utils.data.collate_fn_train,
+            collate_fn=alltracker.utils.data.collate_fn_train,
             drop_last=True,
         )
         sparse_loader24 = fabric.setup_dataloaders(sparse_loader24, move_to_device=False, use_distributed_sampler=False)
@@ -744,7 +745,7 @@ def run(model, args):
             worker_init_fn=seed_worker,
             generator=g,
             pin_memory=False,
-            collate_fn=utils.data.collate_fn_train,
+            collate_fn=alltracker.utils.data.collate_fn_train,
             drop_last=True,
         )
         sparse_loader56 = fabric.setup_dataloaders(sparse_loader56, move_to_device=False, use_distributed_sampler=False)
@@ -769,7 +770,7 @@ def run(model, args):
     global_step = 0
     if args.init_dir:
         load_dir = '%s/%s' % (args.ckpt_dir, args.init_dir)
-        loaded_global_step = utils.saveload.load(
+        loaded_global_step = alltracker.utils.saveload.load(
             fabric,
             load_dir,
             model,
@@ -798,7 +799,7 @@ def run(model, args):
         assert model.training
 
         if fabric.global_rank in log_ranks:
-            sw_t = utils.improc.Summ_writer(
+            sw_t = alltracker.utils.improc.Summ_writer(
                 writer=writer_t,
                 global_step=global_step,
                 log_freq=args.log_freq,
@@ -844,7 +845,7 @@ def run(model, args):
         if fabric.global_rank in ranks_2:
             total_loss, metrics = forward_batch_flow(batch, model, args, sw_t, inference_iters, horz_flip=args.horz_flip_2, vert_flip=args.vert_flip_2)
         else:
-            utils.data.dataclass_to_cuda_(batch)
+            alltracker.utils.data.dataclass_to_cuda_(batch)
             total_loss, metrics = forward_batch_sparse(batch, model, args, sw_t, inference_iters)
 
         ftime = time.time()-f_start_time
@@ -902,7 +903,7 @@ def run(model, args):
         if global_step % args.save_freq == 0:
             if metrics is not None: # otw something weird happened
                 if fabric.global_rank == 0:
-                    utils.saveload.save(save_dir, model.module, optimizer, scheduler, global_step, keep_latest=2)
+                    alltracker.utils.saveload.save(save_dir, model.module, optimizer, scheduler, global_step, keep_latest=2)
 
         if fabric.global_rank in log_ranks:
             info_str = '%s; step %06d/%d; rtime %.2f; itime %.2f' % (
@@ -925,7 +926,7 @@ if __name__ == "__main__":
     # this file is for training alltracker in "stage 2", 
     # which involves mixing flow datasets with point tracking datasets.
     
-    from nets.alltracker import Net; exp = 'stage2' # clean up for release
+    from alltracker.nets.alltracker import Net; exp = 'stage2' # clean up for release
     
     parser = argparse.ArgumentParser()
     parser.add_argument("--exp", default=exp)

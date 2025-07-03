@@ -1,0 +1,33 @@
+[project]
+name = "alltracker"
+version = "0.0.1"
+description = ""
+readme = "README.md"
+dependencies = [
+    # basic
+    "torch",
+    "torchaudio",
+    "torchvision",
+    "lightning",
+    "opencv-python",
+    "einops",
+    "moviepy",
+    "h5py",
+    "matplotlib",
+    "scipy",
+    "tensorboardX",
+    "prettytable",
+]
+
+# [project.optional-dependencies]
+# notebook = ["jupyter", "jupyterlab", "ipykernel"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/alltracker"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.metadata]
+allow-direct-references = true

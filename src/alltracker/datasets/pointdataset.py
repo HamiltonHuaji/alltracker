@@ -5,7 +5,7 @@ import imageio
 import numpy as np
 from torchvision.transforms import ColorJitter, GaussianBlur
 from PIL import Image
-import utils.data
+import alltracker.utils.data
 
 class PointDataset(torch.utils.data.Dataset):
     def __init__(
@@ -69,7 +69,7 @@ class PointDataset(torch.utils.data.Dataset):
         else:
             S = 11
         # fake sample, so we can still collate
-        sample = utils.data.VideoData(
+        sample = alltracker.utils.data.VideoData(
             video=torch.zeros((S, 3, self.crop_size[0], self.crop_size[1])),
             trajs=torch.zeros((S, self.traj_per_sample, 2)),
             visibs=torch.zeros((S, self.traj_per_sample)),

@@ -9,8 +9,8 @@ import torchvision.transforms as transforms
 import torch.nn.functional as F
 import random
 from torch._C import dtype, set_flush_denormal
-import utils.basic
-import utils.improc
+import alltracker.utils.basic
+import alltracker.utils.improc
 import glob
 import json
 import cv2
